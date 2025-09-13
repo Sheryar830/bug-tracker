@@ -169,7 +169,7 @@ export default function Sidebar() {
                 </NavLink>
               </li>
               <li className="menu-item">
-                <NavLink to="/bug-history" className={linkCls}>
+                <NavLink to="/dev/history" className={linkCls}>
                   <span className="material-symbols-outlined menu-icon">
                     history
                   </span>

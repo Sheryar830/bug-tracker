@@ -1,6 +1,8 @@
 // models/issue.model.js
 const mongoose = require("mongoose");
 
+/* -------------------- Attachments -------------------- */
+
 const AttachmentSchema = new mongoose.Schema(
   {
     url: String,
@@ -29,6 +31,25 @@ function mapOldAttachments(arr) {
   return arr.map((a) => (typeof a === "string" ? { url: a, name: a } : a));
 }
 
+/* -------------------- History trail -------------------- */
+
+const IssueHistorySchema = new mongoose.Schema(
+  {
+    by: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // who made the change
+    action: {
+      type: String,
+      enum: ["status_change", "unassign"],
+      required: true,
+    },
+    from: String,             // previous status (for status_change)
+    to: String,               // new status (for status_change)
+    at: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+/* -------------------- Issue schema -------------------- */
+
 const IssueSchema = new mongoose.Schema(
   {
     projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: false },
@@ -46,20 +67,42 @@ const IssueSchema = new mongoose.Schema(
     },
     reporterId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     assigneeId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
     attachments: {
       type: [AttachmentSchema],
       default: [],
       set: normalizeAttachments,
       get: mapOldAttachments,
     },
-    tags: [String],
+
+    tags: { type: [String], default: [] },
+
+    // NEW: audit trail entries (used by /dev/history and general auditing)
+    history: { type: [IssueHistorySchema], default: [] },
   },
   {
     timestamps: true,
-    toJSON: { getters: true },   // ensure getter runs in res.json
+    toJSON: { getters: true },
     toObject: { getters: true },
   }
 );
 
-// Avoid OverwriteModelError in dev hot reloads
-module.exports = mongoose.models.Issue || mongoose.model("Issue", IssueSchema);
+/* -------------------- Indexes (speed up common queries) -------------------- */
+
+// list & filter
+IssueSchema.index({ createdAt: -1 });
+IssueSchema.index({ projectId: 1, createdAt: -1 });
+IssueSchema.index({ assigneeId: 1, createdAt: -1 });
+IssueSchema.index({ reporterId: 1, createdAt: -1 });
+IssueSchema.index({ status: 1, createdAt: -1 });
+
+// developer history feed
+IssueSchema.index({ "history.by": 1, "history.at": -1 });
+
+// optional text search across title/description/steps
+IssueSchema.index({ title: "text", description: "text", steps: "text" });
+
+/* -------------------- Export -------------------- */
+
+module.exports =
+  mongoose.models.Issue || mongoose.model("Issue", IssueSchema);

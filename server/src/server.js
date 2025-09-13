@@ -11,6 +11,8 @@ const adminProjectRoutes = require("./routes/admin.projects.routes");
 const adminIssueRoutes = require("./routes/admin.issues.routes");
 const adminSettingsRoutes = require("./routes/admin.settings.routes");
 const projectsRoutes = require("./routes/projects.routes");
+const devIssueRoutes = require("./routes/dev.issues.routes");
+const devHistoryRoutes = require("./routes/dev.history.routes");
 const { auth } = require("./middleware/auth");
 const { allow } = require("./middleware/roles");
 const { ROLES } = require("./config/constants");
@@ -35,6 +37,10 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/issues", adminIssueRoutes);
 app.use("/api/admin", adminSettingsRoutes);
 app.use("/api/projects", projectsRoutes);
+app.use("/api/dev/issues", devIssueRoutes);
+app.use("/api/dev/history", devHistoryRoutes);
+
+
 
 // protected demo routes
 app.get("/api/me", auth, (req, res) => res.json({ user: req.user }));

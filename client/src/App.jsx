@@ -14,7 +14,12 @@ import AdminProjects from "./pages/admin/AdminProjects";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminAllBugs from "./pages/admin/AdminAllBugs";
 import AdminSettings from "./pages/admin/AdminSettings";
-import MyProjects from './pages/MyProjects';
+import MyProjects from "./pages/MyProjects";
+import AssignedBugs from "./pages/dev/AssignedBugs";
+import BugHistory from "./pages/dev/BugHistory";
+import AdminIssueDetail from "./pages/admin/AdminIssueDetail";
+import DevIssueDetail from "./pages/dev/DevIssueDetail";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,7 +43,12 @@ export default function App() {
             <Route path="admin-users" element={<AdminUsers />} />
             <Route path="all-bugs" element={<AdminAllBugs />} />
             <Route path="admin-settings" element={<AdminSettings />} />
-<Route path="my-projects" element={<MyProjects/>} />  
+            <Route path="my-projects" element={<MyProjects />} />
+            <Route path="assigned-bugs" element={<AssignedBugs/>} />
+            <Route path="/dev/history" element={<BugHistory />} />
+            <Route path="/all-bugs/:id" element={<AdminIssueDetail />} />
+            <Route path="/dev/issues/:id" element={<DevIssueDetail />} />
+
             {/* add more pages here */}
           </Route>
 

@@ -1,14 +1,18 @@
 // client/src/pages/IssuesList.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+
 import { api } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 
 export default function IssuesList() {
-  const { token, user } = useAuth();                 // ← also get user for permission check
+  const { token, user } = useAuth(); // also get user for permission check
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [removingId, setRemovingId] = useState(null); // ← track a row being deleted
+  const [removingId, setRemovingId] = useState(null); // track a row being deleted
   const [filters, setFilters] = useState({
     mine: "reported", // '', 'reported', 'assigned'
     status: "",
@@ -50,9 +54,57 @@ export default function IssuesList() {
 
   const pages = Math.max(Math.ceil(total / filters.limit), 1);
 
+  // ---- UI helpers ----
+  const shortUrl = (u) => {
+    try {
+      return new URL(u).hostname.replace(/^www\./, "");
+    } catch {
+      return u;
+    }
+  };
+  const clip = (s, n = 20) => (String(s || "").length > n ? String(s).slice(0, n) + "…" : s);
+
+  const sevClass = (s) =>
+    s === "Critical" ? "bg-danger" :
+    s === "High"     ? "bg-warning text-dark" :
+    s === "Medium"   ? "bg-info text-dark" :
+    "bg-secondary";
+
+  const statusClass = (s) => {
+    switch (s) {
+      case "NEW": return "bg-secondary";
+      case "OPEN": return "bg-primary";
+      case "IN_PROGRESS": return "bg-info text-dark";
+      case "READY_FOR_TEST": return "bg-warning text-dark";
+      case "REOPENED": return "bg-dark";
+      case "CLOSED": return "bg-success";
+      default: return "bg-secondary";
+    }
+  };
+
+  // Re-init Bootstrap tooltips when items change
+  useEffect(() => {
+    if (!window.bootstrap?.Tooltip) return;
+    const nodes = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltips = [...nodes].map((el) => new window.bootstrap.Tooltip(el));
+    return () => tooltips.forEach((t) => t.dispose());
+  }, [items]);
+
   // ---- Delete issue (only reporter or admin) ----
+  const confirmDelete = async (id) => {
+    const res = await Swal.fire({
+      title: "Delete this issue?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc3545",
+    });
+    if (res.isConfirmed) removeIssue(id);
+  };
+
   const removeIssue = async (id) => {
-    if (!window.confirm("Delete this issue? This cannot be undone.")) return;
     setRemovingId(id);
     try {
       await api.delete(`/issues/${id}`, {
@@ -62,7 +114,7 @@ export default function IssuesList() {
       setItems((arr) => arr.filter((x) => x._id !== id));
       setTotal((t) => Math.max(t - 1, 0));
     } catch (e) {
-      alert(e.response?.data?.message || "Delete failed");
+      Swal.fire("Delete failed", e.response?.data?.message || "Please try again.", "error");
     } finally {
       setRemovingId(null);
     }
@@ -70,7 +122,10 @@ export default function IssuesList() {
 
   return (
     <div className="card bg-white p-20 rounded-10 border border-white mb-4">
-      <h3 className="mb-3">Issues</h3>
+      <div className="d-flex align-items-center justify-content-between">
+        <h3 className="mb-3">Issues</h3>
+        {loading && <span className="text-muted small">Loading…</span>}
+      </div>
 
       <div className="row" style={{ "--bs-gutter-x": "14px" }}>
         <div className="col-md-2 mb-2">
@@ -93,13 +148,11 @@ export default function IssuesList() {
             onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))}
           >
             <option value="">Any</option>
-            {["NEW", "OPEN", "IN_PROGRESS", "READY_FOR_TEST", "CLOSED", "REOPENED"].map(
-              (s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              )
-            )}
+            {["NEW", "OPEN", "IN_PROGRESS", "READY_FOR_TEST", "CLOSED", "REOPENED"].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </div>
         <div className="col-md-2 mb-2">
@@ -137,63 +190,121 @@ export default function IssuesList() {
         <table className="table align-middle">
           <thead>
             <tr>
-              <th>Title</th>
+              <th style={{ minWidth: 280 }}>Title</th>
               <th>Severity</th>
               <th>Status</th>
-              <th>Assignee</th>
               <th>Reported</th>
-              <th>Actions</th> {/* new column */}
+              <th style={{ width: 140 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {items.map((it) => {
               const canDelete =
                 String(it.reporterId) === String(user?.id) || user?.role === "ADMIN";
+              const created = it.createdAt ? new Date(it.createdAt).toLocaleString() : "—";
+              const files = (it.attachments || []).map((a) =>
+                typeof a === "string" ? { url: a, name: a } : a
+              );
 
               return (
                 <tr key={it._id}>
-                  <td>
-                    <div className="fw-medium">{it.title}</div>
-                    <div className="small text-muted">{it.pageUrl}</div>
-                    {(it.attachments || [])
-                      .slice(0, 3)
-                      .map((a, i) => (
+                  <td style={{ maxWidth: 520 }}>
+                    <div className="fw-medium text-truncate" title={it.title}>
+                      {it.title}
+                    </div>
+
+                    {it.pageUrl && (
+                      <div className="small">
                         <a
-                          key={i}
-                          href={a.url}
+                          href={it.pageUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="badge bg-secondary me-1 text-decoration-none"
+                          className="text-muted text-decoration-none"
+                          title={it.pageUrl}
                         >
-                          {(a.name || a.url).slice(0, 20)}
+                          <i className="ri-external-link-line me-1" />
+                          {shortUrl(it.pageUrl)}
                         </a>
-                      ))}
-                  </td>
-                  <td>{it.severity}</td>
-                  <td>{it.status}</td>
-                  <td className="small text-muted">{it.assigneeId || "—"}</td>
-                  <td className="small text-muted">
-                    {new Date(it.createdAt).toLocaleString()}
-                  </td>
-                  <td>
-                    {canDelete ? (
-                      <button
-                        className="btn btn-outline-danger btn-sm"
-                        disabled={removingId === it._id}
-                        onClick={() => removeIssue(it._id)}
-                      >
-                        {removingId === it._id ? "Deleting..." : "Delete"}
-                      </button>
-                    ) : (
-                      <span className="text-muted small">—</span>
+                      </div>
                     )}
+
+                    {!!files.length && (
+                      <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                        {files.slice(0, 3).map((a, i) =>
+                          a?.url ? (
+                            <a
+                              key={i}
+                              href={a.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="badge bg-secondary text-decoration-none"
+                              title={a.name || a.url}
+                            >
+                              <i className="ri-attachment-2" /> {clip(a.name || a.url, 22)}
+                            </a>
+                          ) : null
+                        )}
+                        {files.length > 3 && (
+                          <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
+                            +{files.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+
+                  <td>
+                    <span className={`badge ${sevClass(it.severity)}`}>{it.severity}</span>
+                  </td>
+
+                  <td>
+                    <span className={`badge ${statusClass(it.status)}`}>{it.status}</span>
+                  </td>
+
+                  {/* Reported date */}
+                  <td className="small text-muted">{created}</td>
+
+                  {/* Actions */}
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <Link
+                        to={`/issues/${it._id}`}
+                        className="btn btn-icon btn-outline-secondary"
+                        title="View details"
+                        data-bs-toggle="tooltip"
+                        data-bs-title="View details"
+                        aria-label="View details"
+                      >
+                        <i className="ri-eye-line" />
+                      </Link>
+
+                      {canDelete ? (
+                        <button
+                          className="btn btn-icon btn-outline-danger"
+                          disabled={removingId === it._id}
+                          onClick={() => confirmDelete(it._id)}
+                          title="Delete"
+                          data-bs-toggle="tooltip"
+                          data-bs-title="Delete"
+                          aria-label="Delete"
+                        >
+                          {removingId === it._id ? (
+                            <i className="ri-loader-4-line ri-spin" />
+                          ) : (
+                            <i className="ri-delete-bin-6-line" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-muted small">—</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {!items.length && !loading && (
               <tr>
-                <td colSpan={6} className="text-center text-muted">
+                <td colSpan={5} className="text-center text-muted">
                   No issues found
                 </td>
               </tr>

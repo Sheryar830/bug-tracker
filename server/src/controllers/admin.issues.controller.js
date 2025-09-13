@@ -35,7 +35,7 @@ const listIssues = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip((pg - 1) * lim)
         .limit(lim)
-        .select("title status severity priority projectId assigneeId reporterId createdAt")
+       .select("title pageUrl attachments status severity priority projectId assigneeId reporterId createdAt")
         .populate("projectId", "name key")
         .lean(),
       Issue.countDocuments(where),
@@ -89,4 +89,33 @@ const bulkUpdate = async (req, res) => {
   }
 };
 
-module.exports = { listIssues, updateIssue, bulkUpdate };
+const removeIssue = async (req, res) => {
+  try {
+    const r = await Issue.findByIdAndDelete(req.params.id);
+    if (!r) return res.status(404).json({ message: "Not found" });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+};
+
+
+const getIssue = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const it = await Issue.findById(id)
+      .select("title description steps pageUrl environment severity priority status tags projectId reporterId assigneeId createdAt updatedAt attachments")
+      .populate("projectId", "name key url")
+      .populate("reporterId", "name email")
+      .populate("assigneeId", "name email")
+      .lean();
+
+    if (!it) return res.status(404).json({ message: "Not found" });
+    res.json(it);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+};
+
+module.exports = { listIssues, updateIssue, bulkUpdate, removeIssue, getIssue };
+
