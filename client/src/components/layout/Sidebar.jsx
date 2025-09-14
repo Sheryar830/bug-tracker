@@ -29,7 +29,7 @@ export default function Sidebar() {
           className="d-block text-decoration-none position-relative"
         >
           <img src="/images/logo-icon.png" alt="logo-icon" />
-          <span className="logo-text text-secondary fw-semibold">Fila</span>
+          <span className="logo-text text-secondary fw-semibold">Tracker</span>
         </NavLink>
       </div>
 
@@ -98,14 +98,7 @@ export default function Sidebar() {
                   <span className="title">All Bugs</span>
                 </NavLink>
               </li>
-              <li className="menu-item">
-                <NavLink to="/admin-settings" className={linkCls}>
-                  <span className="material-symbols-outlined menu-icon">
-                    tune
-                  </span>
-                  <span className="title">Settings</span>
-                </NavLink>
-              </li>
+             
             </>
           )}
 

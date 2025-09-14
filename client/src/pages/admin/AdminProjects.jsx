@@ -1,5 +1,5 @@
 // client/src/pages/admin/AdminProjects.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -11,14 +11,14 @@ export default function AdminProjects() {
   const headers = { Authorization: `Bearer ${token}` };
 
   const [items, setItems] = useState([]);
+  const [users, setUsers] = useState([]); // NEW: all active users for dropdown
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState({ name: "", key: "", description: "", url: "" });
   const [member, setMember] = useState({ email: "", projectId: "" });
 
-  // in-flight flags for buttons
   const [deletingProjectId, setDeletingProjectId] = useState(null);
-  const [removingMemberKey, setRemovingMemberKey] = useState(null); // `${projectId}:${userId}`
+  const [removingMemberKey, setRemovingMemberKey] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -26,30 +26,31 @@ export default function AdminProjects() {
       const { data } = await api.get("/admin/projects", { headers });
       setItems(data || []);
     } catch (e) {
-      setMsg(e.response?.data?.message || "Failed to load projects");
-      Swal.fire("Load failed", e.response?.data?.message || "Failed to load projects", "error");
+      const m = e.response?.data?.message || "Failed to load projects";
+      setMsg(m);
+      Swal.fire("Load failed", m, "error");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-const toast = (title = "Done", icon = "success") =>
-  Swal.fire({
-    title,
-    icon,
-    showConfirmButton: false,
-    timer: 1200,
-    // centered modal (default), NOT a toast
-    position: "center",
-    toast: false,
-    backdrop: true,
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-  });
+  // NEW: load active users (both testers & devs)
+  const loadUsers = async () => {
+    try {
+      const { data } = await api.get("/admin/users", {
+        headers,
+        params: { active: "true", limit: 500 },
+      });
+      const list = data?.items ?? data ?? [];
+      setUsers(list);
+    } catch (_) { /* ignore */ }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadUsers(); /* eslint-disable-next-line */ }, []);
+
+  const toast = (title = "Done", icon = "success") =>
+    Swal.fire({ title, icon, showConfirmButton: false, timer: 1200, position: "center", toast: false, backdrop: true, allowOutsideClick: false, allowEscapeKey: false });
 
   const create = async (e) => {
     e.preventDefault();
@@ -81,7 +82,6 @@ const toast = (title = "Done", icon = "success") =>
     }
   };
 
-  // Confirm + delete project
   const handleRemoveProject = async (id, name) => {
     const res = await Swal.fire({
       title: "Delete this project?",
@@ -114,7 +114,11 @@ const toast = (title = "Done", icon = "success") =>
     e.preventDefault();
     setMsg("");
     try {
-      await api.post(`/admin/projects/${member.projectId}/members`, { email: member.email }, { headers });
+      await api.post(
+        `/admin/projects/${member.projectId}/members`,
+        { email: member.email }, // still sending email, backend stays the same
+        { headers }
+      );
       setMember({ email: "", projectId: "" });
       await load();
       setMsg("Member added");
@@ -126,7 +130,6 @@ const toast = (title = "Done", icon = "success") =>
     }
   };
 
-  // Confirm + remove member
   const handleRemoveMember = async (projectId, userId, name) => {
     const res = await Swal.fire({
       title: "Remove this member?",
@@ -158,6 +161,14 @@ const toast = (title = "Done", icon = "success") =>
 
   const openableUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
 
+  // Compute available users for the selected project (exclude already added)
+  const availableUsers = useMemo(() => {
+    if (!member.projectId) return users;
+    const proj = items.find((p) => p._id === member.projectId);
+    const existingIds = new Set((proj?.members || []).map((m) => m._id));
+    return users.filter((u) => !existingIds.has(u._id));
+  }, [users, items, member.projectId]);
+
   return (
     <div className="card bg-white p-20 rounded-10 border border-white mb-4">
       <div className="d-flex align-items-center justify-content-between mb-3">
@@ -169,75 +180,60 @@ const toast = (title = "Done", icon = "success") =>
       {/* Create project */}
       <form onSubmit={create} className="row mb-3" style={{ "--bs-gutter-x": "14px" }}>
         <div className="col-md-3">
-          <input
-            className="form-control"
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            required
-          />
+          <input className="form-control" placeholder="Name"
+                 value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
         </div>
         <div className="col-md-2">
-          <input
-            className="form-control"
-            placeholder="KEY (e.g. APP)"
-            value={form.key}
-            onChange={(e) => setForm((f) => ({ ...f, key: e.target.value.toUpperCase() }))}
-            required
-          />
+          <input className="form-control" placeholder="KEY (e.g. APP)"
+                 value={form.key} onChange={(e) => setForm((f) => ({ ...f, key: e.target.value.toUpperCase() }))} required />
         </div>
         <div className="col-md-3">
-          <input
-            className="form-control"
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          />
+          <input className="form-control" placeholder="Description"
+                 value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
         </div>
         <div className="col-md-2">
-          <input
-            className="form-control"
-            placeholder="Project URL (optional)"
-            value={form.url}
-            onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-          />
+          <input className="form-control" placeholder="Project URL (optional)"
+                 value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
         </div>
         <div className="col-md-2">
-          <button className="btn btn-primary w-100" disabled={loading}>
-            Create
-          </button>
+          <button className="btn btn-primary w-100" disabled={loading}>Create</button>
         </div>
       </form>
 
       {/* Add member */}
       <form onSubmit={addMember} className="row mb-3" style={{ "--bs-gutter-x": "14px" }}>
         <div className="col-md-4">
-          <select
-            className="form-select"
-            value={member.projectId}
-            onChange={(e) => setMember((m) => ({ ...m, projectId: e.target.value }))}
-            required
-          >
+          <select className="form-select" value={member.projectId}
+                  onChange={(e) => setMember((m) => ({ ...m, projectId: e.target.value, email: "" }))} required>
             <option value="">Select project to add member</option>
             {items.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name} ({p.key})
-              </option>
+              <option key={p._id} value={p._id}>{p.name} ({p.key})</option>
             ))}
           </select>
         </div>
+
         <div className="col-md-6">
-          <input
-            className="form-control"
-            type="email"
-            placeholder="Member email"
-            value={member.email}
-            onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))}
-            required
-          />
+          <select className="form-select"
+                  value={member.email}
+                  disabled={!member.projectId}
+                  onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))}
+                  required>
+            <option value="">
+              {member.projectId ? "Select user (email)" : "Choose a project first"}
+            </option>
+            {availableUsers.map((u) => (
+              <option key={u._id} value={u.email}>
+                {u.name ? `${u.name} • ${u.email} (${u.role})` : `${u.email} (${u.role})`}
+              </option>
+            ))}
+            {!availableUsers.length && member.projectId && (
+              <option value="" disabled>No available users</option>
+            )}
+          </select>
         </div>
+
         <div className="col-md-2">
-          <button className="btn btn-outline-primary w-100" disabled={loading}>
+          <button className="btn btn-outline-primary w-100" disabled={loading || !member.projectId}>
             Add Member
           </button>
         </div>
@@ -260,52 +256,24 @@ const toast = (title = "Done", icon = "success") =>
             {items.map((p) => (
               <tr key={p._id}>
                 <td>
-                  <input
-                    className="form-control form-control-sm"
-                    defaultValue={p.name}
-                    onBlur={(e) =>
-                      e.target.value !== p.name && update(p._id, { name: e.target.value })
-                    }
-                  />
+                  <input className="form-control form-control-sm" defaultValue={p.name}
+                         onBlur={(e) => e.target.value !== p.name && update(p._id, { name: e.target.value })} />
                 </td>
                 <td>
-                  <input
-                    className="form-control form-control-sm"
-                    defaultValue={p.key}
-                    onBlur={(e) =>
-                      e.target.value !== p.key && update(p._id, { key: e.target.value })
-                    }
-                  />
+                  <input className="form-control form-control-sm" defaultValue={p.key}
+                         onBlur={(e) => e.target.value !== p.key && update(p._id, { key: e.target.value })} />
                 </td>
                 <td>
-                  <input
-                    className="form-control form-control-sm"
-                    defaultValue={p.description}
-                    onBlur={(e) =>
-                      e.target.value !== p.description &&
-                      update(p._id, { description: e.target.value })
-                    }
-                  />
+                  <input className="form-control form-control-sm" defaultValue={p.description}
+                         onBlur={(e) => e.target.value !== p.description && update(p._id, { description: e.target.value })} />
                 </td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
-                    <input
-                      className="form-control form-control-sm"
-                      defaultValue={p.url || ""}
-                      placeholder="https://…"
-                      onBlur={(e) =>
-                        e.target.value !== (p.url || "") &&
-                        update(p._id, { url: e.target.value })
-                      }
-                    />
+                    <input className="form-control form-control-sm" defaultValue={p.url || ""} placeholder="https://…"
+                           onBlur={(e) => e.target.value !== (p.url || "") && update(p._id, { url: e.target.value })} />
                     {p.url ? (
-                      <a
-                        href={openableUrl(p.url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-light btn-sm"
-                        title="Open project URL"
-                      >
+                      <a href={openableUrl(p.url)} target="_blank" rel="noreferrer"
+                         className="btn btn-light btn-sm" title="Open project URL">
                         Open
                       </a>
                     ) : null}
@@ -318,13 +286,9 @@ const toast = (title = "Done", icon = "success") =>
                     return (
                       <span key={m._id} className="badge bg-secondary me-1">
                         {m.name} ({m.role})
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-light ms-1 py-0 px-1"
-                          onClick={() => handleRemoveMember(p._id, m._id, m.name)}
-                          disabled={removing}
-                          title="Remove member"
-                        >
+                        <button type="button" className="btn btn-sm btn-light ms-1 py-0 px-1"
+                                onClick={() => handleRemoveMember(p._id, m._id, m.name)}
+                                disabled={removing} title="Remove member">
                           {removing ? "…" : "x"}
                         </button>
                       </span>
@@ -333,23 +297,16 @@ const toast = (title = "Done", icon = "success") =>
                   {!p.members?.length && <span className="text-muted small">No members</span>}
                 </td>
                 <td>
-                  <button
-                    className="btn btn-outline-danger btn-sm"
-                    onClick={() => handleRemoveProject(p._id, p.name)}
-                    disabled={deletingProjectId === p._id}
-                    title="Delete project"
-                  >
+                  <button className="btn btn-outline-danger btn-sm"
+                          onClick={() => handleRemoveProject(p._id, p.name)}
+                          disabled={deletingProjectId === p._id} title="Delete project">
                     {deletingProjectId === p._id ? "Deleting…" : "Delete"}
                   </button>
                 </td>
               </tr>
             ))}
             {!items.length && !loading && (
-              <tr>
-                <td colSpan={6} className="text-center text-muted">
-                  No projects
-                </td>
-              </tr>
+              <tr><td colSpan={6} className="text-center text-muted">No projects</td></tr>
             )}
           </tbody>
         </table>
