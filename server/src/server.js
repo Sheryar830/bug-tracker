@@ -20,14 +20,19 @@ const { ROLES } = require("./config/constants");
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// allow all during setup; later set to your frontend origin
+app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
 
-// sample route
-app.get("/", (_req, res) => res.send("hello my name is shery"));
-
+// connect DB once
 connectDB();
 
+// health/sample
+app.get("/", (_req, res) => res.send("hello my name is shery"));
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// routes
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api", userRoutes);
@@ -40,11 +45,15 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/dev/issues", devIssueRoutes);
 app.use("/api/dev/history", devHistoryRoutes);
 
-
-
 // protected demo routes
 app.get("/api/me", auth, (req, res) => res.json({ user: req.user }));
 app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) => res.json({ ok: true }));
 
-const port = process.env.PORT || 8000;
-app.listen(port, () => console.log(`Server is running on port ${port}`));
+// 👉 Export the app for serverless
+module.exports = app;
+
+// 👉 Only listen when running locally (npm run dev / start)
+if (require.main === module) {
+  const port = process.env.PORT || 8000;
+  app.listen(port, () => console.log(`Server is running on port ${port}`));
+}
