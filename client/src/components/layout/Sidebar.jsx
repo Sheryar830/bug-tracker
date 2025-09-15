@@ -39,7 +39,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Logo + optional close button (visible only on mobile) */}
-      <div className="logo position-relative d-flex align-items-center justify-content-between px-2 py-2">
+      <div className="logo position-relative d-flex align-items-center justify-content-between px-2 py-2" style={{marginTop : 20}}>    
         <NavLink to="/" className="d-block text-decoration-none position-relative" onClick={closeSidebarMobile}>
           <img src="/images/logo-icon.png" alt="logo-icon" />
           <span className="logo-text text-secondary fw-semibold ms-2">Tracker</span>

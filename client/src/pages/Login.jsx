@@ -5,9 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 
 export default function Login() {
-  const { register, handleSubmit } = useForm({
-    defaultValues: { email: 'admin@bt.com', password: 'Admin@123', remember: false },
-  });
+  const { register, handleSubmit } = useForm();
+
   const { login, loading } = useAuth();
   const nav = useNavigate();
   const [showPwd, setShowPwd] = useState(false);
