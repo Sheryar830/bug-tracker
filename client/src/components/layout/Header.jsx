@@ -53,17 +53,15 @@ export default function Header() {
                   />
                 </button>
               </li>
-              <li>
-                <form className="src-form position-relative">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search here..."
-                  />
-                  <div className="src-btn position-absolute top-50 start-0 translate-middle-y bg-transparent p-0 border-0">
-                    <span className="material-symbols-outlined">search</span>
-                  </div>
-                </form>
+              <li className="text-end pe-3">
+                <div className="fw-semibold fs-16">
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </div>
               </li>
             </ul>
           </div>

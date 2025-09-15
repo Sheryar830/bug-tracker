@@ -234,14 +234,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* NON-ADMIN: keep your existing static section (or show a friendly message) */}
-      {user?.role !== "ADMIN" && (
-        <div className="card bg-white p-20 pb-0 rounded-10 border border-white mb-4">
-          <h3 className="mb-20">Projects Overview</h3>
-          {/* You can keep your previous static content here for non-admins */}
-          <div className="text-muted mb-3">This area will show role-specific stats.</div>
-        </div>
-      )}
+      
     </>
   );
 }

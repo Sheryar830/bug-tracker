@@ -56,18 +56,27 @@ export function AuthProvider({ children }) {
   };
 
   // optional: verify token on load
-  useEffect(() => {
-    (async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      try {
-        const { data } = await api.get("/me");
-        if (!data?.user) throw new Error("bad");
-      } catch {
+useEffect(() => {
+  (async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const { data } = await api.get("/me");
+      if (!data?.user) throw new Error("No user");
+      // Optionally update user info
+      setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
         logout();
+      } else {
+        console.warn("Auth check failed but not logging out", err?.message);
       }
-    })();
-  }, []);
+    }
+  })();
+}, []);
+
 
   return (
     <AuthCtx.Provider value={{ user, loading, login, register, logout }}>
