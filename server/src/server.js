@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+
 const issueRoutes = require("./routes/issueroutes");
 const userRoutes = require("./routes/user.routes");
 const adminRoutes = require("./routes/admin.routes");
@@ -21,18 +22,29 @@ dotenv.config();
 
 const app = express();
 
-// allow all during setup; later set to your frontend origin
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+// allow all during setup; later set to your frontend origin (e.g. https://your-site.netlify.app)
+app.use(cors({ origin: process.env.CORS_ORIGIN || "*"}));
 app.use(express.json());
 
-// connect DB once
-connectDB();
-
-// health/sample
+// --- Health & root (do NOT require DB) ---
 app.get("/", (_req, res) => res.send("hello my name is shery"));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// routes
+// --- Lazy DB connect for routes that need it ---
+app.use(async (req, res, next) => {
+  // allow health/root without DB
+  if (req.path === "/" || req.path === "/api/health") return next();
+
+  try {
+    await connectDB();               // cached connect (see db.js)
+    next();
+  } catch (err) {
+    console.error("DB connect error:", err?.message);
+    return res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
+// --- API routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api", userRoutes);
@@ -45,14 +57,14 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/dev/issues", devIssueRoutes);
 app.use("/api/dev/history", devHistoryRoutes);
 
-// protected demo routes
+// --- Protected demo routes ---
 app.get("/api/me", auth, (req, res) => res.json({ user: req.user }));
 app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) => res.json({ ok: true }));
 
-// 👉 Export the app for serverless
+// Export app for serverless (Vercel)
 module.exports = app;
 
-// 👉 Only listen when running locally (npm run dev / start)
+// Only listen locally
 if (require.main === module) {
   const port = process.env.PORT || 8000;
   app.listen(port, () => console.log(`Server is running on port ${port}`));

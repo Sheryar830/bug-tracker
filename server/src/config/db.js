@@ -1,19 +1,21 @@
 const mongoose = require("mongoose");
 
-const connectDB = async () => {
-  try {
- 
-    await mongoose.connect(process.env.MONGODB_URI, {
-    
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log("MongoDB connected");
-    console.log("Mongo connected to DB:", mongoose.connection.name);
-  } catch (err) {
-    console.error("MongoDB connection error:", err.message);
-    process.exit(1);
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    cached.promise = mongoose
+      .connect(process.env.MONGODB_URI, {
+        dbName: process.env.MONGODB_DB || "myAppDB",
+      })
+      .then((m) => m);
   }
-};
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
 
 module.exports = connectDB;
