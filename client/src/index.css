@@ -1,1 +1,39 @@
 .card.bg-body-bg { background-color: #eff3f9 !important; }
+
+
+/* === Mobile sidebar behavior === */
+@media (max-width: 1199.98px) {
+  /* Sidebar hidden by default on mobile */
+  #layout-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;                  /* match your design */
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    transform: translateX(-100%);  /* hidden */
+    transition: transform .25s ease;
+    z-index: 1040;
+  }
+
+  /* When body has .sidebar-open, show it */
+  body.sidebar-open #layout-menu {
+    transform: translateX(0);
+  }
+
+  /* Backdrop */
+  .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 1030;
+  }
+  body.sidebar-open .mobile-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
