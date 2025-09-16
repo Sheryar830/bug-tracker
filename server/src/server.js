@@ -20,8 +20,26 @@ const { ROLES } = require("./config/constants");
 dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = [
+  "http://localhost:5173", // dev mode
+  "https://bug-tracker-1-m7zv.onrender.com", // your Render static frontend
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// Optional: handle preflight requests for all routes
+app.options("*", cors());app.use(express.json());
 
 // sample route
 app.get("/", (_req, res) => res.send("hello my name is shery"));

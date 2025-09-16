@@ -47,7 +47,7 @@ export default function MyProjects() {
               <th>Name</th>
               <th>Key</th>
               <th>Description</th>
-              <th>Link</th>       {/* NEW */}
+              <th>Link</th>      
               <th>Created</th>
             </tr>
           </thead>

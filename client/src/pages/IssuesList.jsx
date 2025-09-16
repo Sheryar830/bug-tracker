@@ -267,7 +267,7 @@ export default function IssuesList() {
                   {/* Actions */}
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      <Link
+                      {/* <Link
                         to={`/issues/${it._id}`}
                         className="btn btn-icon btn-outline-secondary"
                         title="View details"
@@ -276,7 +276,7 @@ export default function IssuesList() {
                         aria-label="View details"
                       >
                         <i className="ri-eye-line" />
-                      </Link>
+                      </Link> */}
 
                       {canDelete ? (
                         <button
