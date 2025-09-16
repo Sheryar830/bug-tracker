@@ -1,6 +1,9 @@
+// server.js
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
+
+// ---- your imports ----
 const connectDB = require("./config/db");
 const issueRoutes = require("./routes/issueroutes");
 const userRoutes = require("./routes/user.routes");
@@ -17,35 +20,58 @@ const { auth } = require("./middleware/auth");
 const { allow } = require("./middleware/roles");
 const { ROLES } = require("./config/constants");
 
-dotenv.config();
-
 const app = express();
-const allowedOrigins = [
-  "http://localhost:5173", // dev mode
-  "https://bug-tracker-1-m7zv.onrender.com", // your Render static frontend
-];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+// ---------- CORS: allow your frontend(s) ----------
+/**
+ * Set FRONTEND_URL in Render env to your static site URL, e.g.:
+ * FRONTEND_URL=https://bug-tracker-1-m7zv.onrender.com
+ */
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://bug-tracker-1-m7zv.onrender.com";
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  FRONTEND_URL,
+]);
 
-// Optional: handle preflight requests for all routes
-app.options("*", cors());app.use(express.json());
+// If you ever add Netlify/Namecheap/another domain, add it here or via env.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-// sample route
-app.get("/", (_req, res) => res.send("hello my name is shery"));
+  if (!origin || allowedOrigins.has(origin)) {
+    // allow this origin
+    res.header("Access-Control-Allow-Origin", origin || "*");
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  }
 
+  // Short-circuit preflight cleanly
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+
+  // If origin exists and is NOT allowed, block with a clear JSON (don’t throw)
+  if (origin && !allowedOrigins.has(origin)) {
+    return res.status(403).json({ error: "CORS: Origin not allowed" });
+  }
+
+  next();
+});
+
+// You can still keep the cors() middleware for non-origin logic if you like.
+// (Not required, but harmless.)
+app.use(cors());
+
+// ---------- Body parsing ----------
+app.use(express.json());
+
+// ---------- Health + root ----------
+app.get("/", (_req, res) => res.json({ ok: true, service: "bug-tracker-api" }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+
+// ---------- DB ----------
 connectDB();
 
+// ---------- Routes ----------
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api", userRoutes);
@@ -58,11 +84,18 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/dev/issues", devIssueRoutes);
 app.use("/api/dev/history", devHistoryRoutes);
 
-
-
-// protected demo routes
+// Protected demo routes
 app.get("/api/me", auth, (req, res) => res.json({ user: req.user }));
 app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) => res.json({ ok: true }));
+
+// ---------- Fallback 404 ----------
+app.use((req, res) => res.status(404).json({ error: "Not found" }));
+
+// ---------- Error handler (keeps JSON consistently) ----------
+app.use((err, _req, res, _next) => {
+  const status = err.status || 500;
+  res.status(status).json({ error: err.message || "Server error" });
+});
 
 const port = process.env.PORT || 8000;
 app.listen(port, () => console.log(`Server is running on port ${port}`));
