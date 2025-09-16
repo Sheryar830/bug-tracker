@@ -2,7 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 
-// routes & utils
+// ---- your imports
 const connectDB = require("./config/db");
 const issueRoutes = require("./routes/issueroutes");
 const userRoutes = require("./routes/user.routes");
@@ -21,50 +21,35 @@ const { ROLES } = require("./config/constants");
 
 const app = express();
 
-// ---------- CORS (manual, robust, no "*" route) ----------
-const FRONTEND_URL =
-  process.env.FRONTEND_URL || "https://bug-tracker-1-m7zv.onrender.com";
-
-const allowed = new Set([
-  "http://localhost:5173",
-  FRONTEND_URL,
-]);
-
+/**
+ * CORS: permissive and Express‑5 safe
+ * - Allows any origin (no cookies used)
+ * - Always returns CORS headers
+ * - Handles preflight without using "OPTIONS *" (which breaks on Express 5)
+ */
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (!origin || allowed.has(origin)) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-    res.header("Vary", "Origin");
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
-    );
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    );
-  } else {
-    // Block disallowed origins with a clear JSON (don’t throw)
-    return res.status(403).json({ error: "CORS: Origin not allowed" });
-  }
+  res.header("Access-Control-Allow-Origin", "*");                 // allow all
+  res.header("Vary", "Origin");
+  res.header("Access-Control-Allow-Methods",
+             "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers",
+             "Content-Type, Authorization");
 
-  // Short‑circuit preflight without registering "OPTIONS *"
-  if (req.method === "OPTIONS") return res.sendStatus(200);
+  if (req.method === "OPTIONS") return res.sendStatus(200);       // preflight OK
   next();
 });
 
-// ---------- Body parsing ----------
+// Body parsing
 app.use(express.json());
 
-// ---------- Health + root ----------
+// Health + root
 app.get("/", (_req, res) => res.json({ ok: true, service: "bug-tracker-api" }));
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
-// ---------- DB ----------
+// DB
 connectDB();
 
-// ---------- Routes ----------
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api", userRoutes);
@@ -83,7 +68,7 @@ app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) =>
   res.json({ ok: true })
 );
 
-// 404 + error handlers
+// 404 + error handler
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 app.use((err, _req, res, _next) => {
   const status = err.status || 500;
