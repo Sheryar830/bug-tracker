@@ -1,9 +1,8 @@
-// server.js
+// server/src/server.js
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
 
-// ---- your imports ----
+// routes & utils
 const connectDB = require("./config/db");
 const issueRoutes = require("./routes/issueroutes");
 const userRoutes = require("./routes/user.routes");
@@ -22,44 +21,38 @@ const { ROLES } = require("./config/constants");
 
 const app = express();
 
-// ---------- CORS: allow your frontend(s) ----------
-/**
- * Set FRONTEND_URL in Render env to your static site URL, e.g.:
- * FRONTEND_URL=https://bug-tracker-1-m7zv.onrender.com
- */
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://bug-tracker-1-m7zv.onrender.com";
-const allowedOrigins = new Set([
+// ---------- CORS (manual, robust, no "*" route) ----------
+const FRONTEND_URL =
+  process.env.FRONTEND_URL || "https://bug-tracker-1-m7zv.onrender.com";
+
+const allowed = new Set([
   "http://localhost:5173",
   FRONTEND_URL,
 ]);
 
-// If you ever add Netlify/Namecheap/another domain, add it here or via env.
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-
-  if (!origin || allowedOrigins.has(origin)) {
-    // allow this origin
+  if (!origin || allowed.has(origin)) {
     res.header("Access-Control-Allow-Origin", origin || "*");
     res.header("Vary", "Origin");
     res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  }
-
-  // Short-circuit preflight cleanly
-  if (req.method === "OPTIONS") return res.sendStatus(200);
-
-  // If origin exists and is NOT allowed, block with a clear JSON (don’t throw)
-  if (origin && !allowedOrigins.has(origin)) {
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+  } else {
+    // Block disallowed origins with a clear JSON (don’t throw)
     return res.status(403).json({ error: "CORS: Origin not allowed" });
   }
 
+  // Short‑circuit preflight without registering "OPTIONS *"
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
-
-// You can still keep the cors() middleware for non-origin logic if you like.
-// (Not required, but harmless.)
-app.use(cors());
 
 // ---------- Body parsing ----------
 app.use(express.json());
@@ -84,14 +77,14 @@ app.use("/api/projects", projectsRoutes);
 app.use("/api/dev/issues", devIssueRoutes);
 app.use("/api/dev/history", devHistoryRoutes);
 
-// Protected demo routes
+// Protected demo
 app.get("/api/me", auth, (req, res) => res.json({ user: req.user }));
-app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) => res.json({ ok: true }));
+app.get("/api/admin-only", auth, allow(ROLES.ADMIN), (_req, res) =>
+  res.json({ ok: true })
+);
 
-// ---------- Fallback 404 ----------
+// 404 + error handlers
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
-
-// ---------- Error handler (keeps JSON consistently) ----------
 app.use((err, _req, res, _next) => {
   const status = err.status || 500;
   res.status(status).json({ error: err.message || "Server error" });
