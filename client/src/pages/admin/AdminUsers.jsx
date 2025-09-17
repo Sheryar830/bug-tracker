@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { useAuth } from "../../auth/AuthProvider";
+import TableSkeleton from "../../components/ui/TableSkeleton"; // ⬅️ add this import
 
 // Hide ADMIN everywhere (filter + change role)
 const ROLE_FILTER_OPTIONS = ["DEVELOPER", "TESTER"];
@@ -27,14 +28,10 @@ export default function AdminUsers() {
     setLoading(true);
     setMsg("");
     try {
-      const params = {
-        page: filters.page,
-        limit: filters.limit,
-      };
+      const params = { page: filters.page, limit: filters.limit };
       if (filters.q) params.q = filters.q;
-      if (filters.role) params.role = filters.role; // won't ever be ADMIN from UI
-      if (filters.active === "true" || filters.active === "false")
-        params.active = filters.active;
+      if (filters.role) params.role = filters.role;
+      if (filters.active === "true" || filters.active === "false") params.active = filters.active;
 
       const { data } = await api.get("/admin/users", { headers, params });
       setItems(data.items || []);
@@ -51,7 +48,6 @@ export default function AdminUsers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.page, filters.limit, filters.role, filters.active]);
 
-  // Search manually with button or on Enter
   const onSearchKey = (e) => {
     if (e.key === "Enter") setFilters((f) => ({ ...f, page: 1 }));
   };
@@ -85,10 +81,13 @@ export default function AdminUsers() {
     <div className="card bg-white p-20 rounded-10 border border-white mb-4">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <h3 className="mb-0">Users</h3>
+        {/* (Optional) keep a tiny text indicator */}
         {loading && <span className="text-muted small">Loading…</span>}
       </div>
+
       {msg && <div className="alert alert-info">{msg}</div>}
 
+      {/* Filters */}
       <div className="row mb-3" style={{ "--bs-gutter-x": "14px" }}>
         <div className="col-md-4">
           <input
@@ -99,8 +98,6 @@ export default function AdminUsers() {
             onKeyDown={onSearchKey}
           />
         </div>
-
-        {/* Role filter (ADMIN removed) */}
         <div className="col-md-3">
           <select
             className="form-select"
@@ -109,13 +106,10 @@ export default function AdminUsers() {
           >
             <option value="">Any role</option>
             {ROLE_FILTER_OPTIONS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
+              <option key={r} value={r}>{r}</option>
             ))}
           </select>
         </div>
-
         <div className="col-md-3">
           <select
             className="form-select"
@@ -128,16 +122,14 @@ export default function AdminUsers() {
           </select>
         </div>
         <div className="col-md-2">
-          <button
-            className="btn btn-primary w-100"
-            onClick={() => setFilters((f) => ({ ...f, page: 1 }))}
-          >
+          <button className="btn btn-primary w-100" onClick={() => setFilters((f) => ({ ...f, page: 1 }))}>
             Search
           </button>
         </div>
       </div>
 
-      <div className="table-responsive">
+      {/* Table */}
+      <div className="table-responsive table-skeleton-wrap">
         <table className="table align-middle">
           <thead>
             <tr>
@@ -148,75 +140,80 @@ export default function AdminUsers() {
               <th style={{ width: 160 }}>Actions</th>
             </tr>
           </thead>
-        <tbody>
-          {items.map((u) => (
-            <tr key={u._id}>
-              <td>{u.name}</td>
-              <td className="small text-muted">{u.email}</td>
+          <tbody>
+            {loading ? (
+              // Fancy skeleton while loading
+              <TableSkeleton
+                rows={5}
+                cols={5}
+                pattern={["lg", "lg", "sm", "sm", "lg"]}
+              />
+            ) : (
+              <>
+                {items.map((u) => (
+                  <tr key={u._id}>
+                    <td>{u.name}</td>
+                    <td className="small text-muted">{u.email}</td>
+                    <td>
+                      {u.role === "ADMIN" ? (
+                        <span className="badge bg-dark">ADMIN</span>
+                      ) : (
+                        <select
+                          className="form-select form-select-sm"
+                          value={u.role}
+                          onChange={(e) => changeRole(u._id, e.target.value)}
+                        >
+                          {ROLE_CHANGE_OPTIONS.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                    <td>
+                      {u.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
+                    </td>
+                    <td>
+                      <button className="btn btn-outline-secondary btn-sm" onClick={() => toggleActive(u)}>
+                        {u.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
 
-              {/* Change role (ADMIN not offered). If user is ADMIN (e.g., fetched explicitly), show badge read-only. */}
-              <td>
-                {u.role === "ADMIN" ? (
-                  <span className="badge bg-dark">ADMIN</span>
-                ) : (
-                  <select
-                    className="form-select form-select-sm"
-                    value={u.role}
-                    onChange={(e) => changeRole(u._id, e.target.value)}
-                  >
-                    {ROLE_CHANGE_OPTIONS.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
+                {!items.length && (
+                  <tr>
+                    <td colSpan={5} className="text-center text-muted">
+                      No users
+                    </td>
+                  </tr>
                 )}
-              </td>
-
-              <td>
-                {u.isActive ? (
-                  <span className="badge bg-success">Active</span>
-                ) : (
-                  <span className="badge bg-secondary">Inactive</span>
-                )}
-              </td>
-              <td>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => toggleActive(u)}
-                >
-                  {u.isActive ? "Deactivate" : "Activate"}
-                </button>
-              </td>
-            </tr>
-          ))}
-          {!items.length && !loading && (
-            <tr>
-              <td colSpan={5} className="text-center text-muted">
-                No users
-              </td>
-            </tr>
-          )}
-        </tbody>
+              </>
+            )}
+          </tbody>
         </table>
       </div>
 
+      {/* Footer / Pagination */}
       <div className="d-flex align-items-center gap-2 mt-2">
         <span className="text-muted small">Total: {total}</span>
         <div className="ms-auto d-flex gap-2">
           <button
             className="btn btn-outline-secondary btn-sm"
-            disabled={filters.page <= 1}
+            disabled={filters.page <= 1 || loading}
             onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
           >
             Prev
           </button>
           <span className="small d-inline-block px-2">
-            Page {filters.page} / {Math.max(Math.ceil(total / filters.limit), 1)}
+            Page {filters.page} / {pages}
           </span>
           <button
             className="btn btn-outline-secondary btn-sm"
-            disabled={filters.page >= Math.max(Math.ceil(total / filters.limit), 1)}
+            disabled={filters.page >= pages || loading}
             onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
           >
             Next
@@ -228,11 +225,10 @@ export default function AdminUsers() {
             onChange={(e) =>
               setFilters((f) => ({ ...f, limit: Number(e.target.value), page: 1 }))
             }
+            disabled={loading}
           >
             {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}/page
-              </option>
+              <option key={n} value={n}>{n}/page</option>
             ))}
           </select>
         </div>

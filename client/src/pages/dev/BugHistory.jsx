@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { useAuth } from "../../auth/AuthProvider";
+import TableSkeleton from "../../components/ui/TableSkeleton";
 
 const ACTIONS = [
   { value: "", label: "Any action" },
@@ -105,57 +106,89 @@ export default function BugHistory() {
               <th>Details</th>
             </tr>
           </thead>
-          <tbody>
-            {items.map((row, idx) => {
-              const h = row.h; // the history entry
-              const files = (row.attachments || []).map(a => (typeof a === "string" ? { url: a, name: a } : a));
-              const firstTwo = files.slice(0, 2);
-              const extra = files.length - firstTwo.length;
-              return (
-                <tr key={row._id + "_" + idx}>
-                  <td className="small text-muted">{new Date(h.at).toLocaleString()}</td>
-                  <td>
-                    <div className="fw-medium">{row.title}</div>
-                    {row.pageUrl && (
-                      <div className="small">
-                        <a href={row.pageUrl} target="_blank" rel="noreferrer" className="text-muted">
-                          {shortUrl(row.pageUrl)}
-                        </a>
-                      </div>
-                    )}
-                    <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
-                      {firstTwo.map((a, i) => a?.url ? (
-                        <a key={i} href={a.url} target="_blank" rel="noreferrer"
-                           className="badge bg-secondary text-decoration-none" title={a.name || a.url}
-                           style={tinyBadgeStyle}>
-                          {badgeLabel(a.name || a.url)}
-                        </a>
-                      ) : null)}
-                      {extra > 0 && (
-                        <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
-                          +{extra} more
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="small text-muted">{row.project?.key || "—"}</td>
-                  <td>
-                    {h.action === "status_change" ? "Status changed" : "Unassigned"}
-                  </td>
-                  <td className="small">
-                    {h.action === "status_change" ? (
-                      <span className="badge bg-light border text-muted">{h.from} → {h.to}</span>
-                    ) : (
-                      <span className="badge bg-warning-subtle text-warning border">Unassigned from issue</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {!items.length && !loading && (
-              <tr><td colSpan={5} className="text-center text-muted">No history</td></tr>
-            )}
-          </tbody>
+         <tbody>
+  {loading ? (
+    <TableSkeleton
+      rows={6}                                // number of shimmer rows
+      cols={5}                                // MUST match your <th> count
+      pattern={["sm","lg","sm","sm","sm"]}    // optional per-column height
+    />
+  ) : (
+    <>
+      {items.map((row, idx) => {
+        const h = row.h;
+        const files = (row.attachments || []).map(a =>
+          typeof a === "string" ? { url: a, name: a } : a
+        );
+        const firstTwo = files.slice(0, 2);
+        const extra = files.length - firstTwo.length;
+
+        return (
+          <tr key={row._id + "_" + idx}>
+            <td className="small text-muted">{new Date(h.at).toLocaleString()}</td>
+            <td>
+              <div className="fw-medium">{row.title}</div>
+              {row.pageUrl && (
+                <div className="small">
+                  <a
+                    href={row.pageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted"
+                  >
+                    {shortUrl(row.pageUrl)}
+                  </a>
+                </div>
+              )}
+              <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                {firstTwo.map((a, i) =>
+                  a?.url ? (
+                    <a
+                      key={i}
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="badge bg-secondary text-decoration-none"
+                      title={a.name || a.url}
+                      style={tinyBadgeStyle}
+                    >
+                      {badgeLabel(a.name || a.url)}
+                    </a>
+                  ) : null
+                )}
+                {extra > 0 && (
+                  <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
+                    +{extra} more
+                  </span>
+                )}
+              </div>
+            </td>
+            <td className="small text-muted">{row.project?.key || "—"}</td>
+            <td>{h.action === "status_change" ? "Status changed" : "Unassigned"}</td>
+            <td className="small">
+              {h.action === "status_change" ? (
+                <span className="badge bg-light border text-muted">
+                  {h.from} → {h.to}
+                </span>
+              ) : (
+                <span className="badge bg-warning-subtle text-warning border">
+                  Unassigned from issue
+                </span>
+              )}
+            </td>
+          </tr>
+        );
+      })}
+
+      {!items.length && (
+        <tr>
+          <td colSpan={5} className="text-center text-muted">No history</td>
+        </tr>
+      )}
+    </>
+  )}
+</tbody>
+
         </table>
       </div>
 

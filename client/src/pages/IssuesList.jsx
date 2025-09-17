@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import TableSkeleton from "../components/ui/TableSkeleton";
 
 import { api } from "../api";
 import { useAuth } from "../auth/AuthProvider";
@@ -198,118 +199,117 @@ export default function IssuesList() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => {
-              const canDelete =
-                String(it.reporterId) === String(user?.id) || user?.role === "ADMIN";
-              const created = it.createdAt ? new Date(it.createdAt).toLocaleString() : "—";
-              const files = (it.attachments || []).map((a) =>
-                typeof a === "string" ? { url: a, name: a } : a
-              );
+  {loading ? (
+    <TableSkeleton
+      rows={6}                         // number of shimmer rows to show
+      cols={5}                         // MUST match your <th> count
+      pattern={["lg","sm","sm","sm","sm"]} // optional per-column height
+    />
+  ) : (
+    <>
+      {items.map((it) => {
+        const canDelete =
+          String(it.reporterId) === String(user?.id) || user?.role === "ADMIN";
+        const created = it.createdAt ? new Date(it.createdAt).toLocaleString() : "—";
+        const files = (it.attachments || []).map((a) =>
+          typeof a === "string" ? { url: a, name: a } : a
+        );
 
-              return (
-                <tr key={it._id}>
-                  <td style={{ maxWidth: 520 }}>
-                    <div className="fw-medium text-truncate" title={it.title}>
-                      {it.title}
-                    </div>
+        return (
+          <tr key={it._id}>
+            <td style={{ maxWidth: 520 }}>
+              <div className="fw-medium text-truncate" title={it.title}>
+                {it.title}
+              </div>
 
-                    {it.pageUrl && (
-                      <div className="small">
-                        <a
-                          href={it.pageUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-muted text-decoration-none"
-                          title={it.pageUrl}
-                        >
-                          <i className="ri-external-link-line me-1" />
-                          {shortUrl(it.pageUrl)}
-                        </a>
-                      </div>
-                    )}
+              {it.pageUrl && (
+                <div className="small">
+                  <a
+                    href={it.pageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted text-decoration-none"
+                    title={it.pageUrl}
+                  >
+                    <i className="ri-external-link-line me-1" />
+                    {shortUrl(it.pageUrl)}
+                  </a>
+                </div>
+              )}
 
-                    {!!files.length && (
-                      <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
-                        {files.slice(0, 3).map((a, i) =>
-                          a?.url ? (
-                            <a
-                              key={i}
-                              href={a.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="badge bg-secondary text-decoration-none"
-                              title={a.name || a.url}
-                            >
-                              <i className="ri-attachment-2" /> {clip(a.name || a.url, 22)}
-                            </a>
-                          ) : null
-                        )}
-                        {files.length > 3 && (
-                          <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
-                            +{files.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-
-                  <td>
-                    <span className={`badge ${sevClass(it.severity)}`}>{it.severity}</span>
-                  </td>
-
-                  <td>
-                    <span className={`badge ${statusClass(it.status)}`}>{it.status}</span>
-                  </td>
-
-                  {/* Reported date */}
-                  <td className="small text-muted">{created}</td>
-
-                  {/* Actions */}
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
-                      {/* <Link
-                        to={`/issues/${it._id}`}
-                        className="btn btn-icon btn-outline-secondary"
-                        title="View details"
-                        data-bs-toggle="tooltip"
-                        data-bs-title="View details"
-                        aria-label="View details"
+              {!!files.length && (
+                <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                  {files.slice(0, 3).map((a, i) =>
+                    a?.url ? (
+                      <a
+                        key={i}
+                        href={a.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="badge bg-secondary text-decoration-none"
+                        title={a.name || a.url}
                       >
-                        <i className="ri-eye-line" />
-                      </Link> */}
+                        <i className="ri-attachment-2" /> {clip(a.name || a.url, 22)}
+                      </a>
+                    ) : null
+                  )}
+                  {files.length > 3 && (
+                    <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
+                      +{files.length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
+            </td>
 
-                      {canDelete ? (
-                        <button
-                          className="btn btn-icon btn-outline-danger"
-                          disabled={removingId === it._id}
-                          onClick={() => confirmDelete(it._id)}
-                          title="Delete"
-                          data-bs-toggle="tooltip"
-                          data-bs-title="Delete"
-                          aria-label="Delete"
-                        >
-                          {removingId === it._id ? (
-                            <i className="ri-loader-4-line ri-spin" />
-                          ) : (
-                            <i className="ri-delete-bin-6-line" />
-                          )}
-                        </button>
-                      ) : (
-                        <span className="text-muted small">—</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {!items.length && !loading && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted">
-                  No issues found
-                </td>
-              </tr>
-            )}
-          </tbody>
+            <td>
+              <span className={`badge ${sevClass(it.severity)}`}>{it.severity}</span>
+            </td>
+
+            <td>
+              <span className={`badge ${statusClass(it.status)}`}>{it.status}</span>
+            </td>
+
+            <td className="small text-muted">{created}</td>
+
+            <td>
+              <div className="d-flex align-items-center gap-2">
+                {canDelete ? (
+                  <button
+                    className="btn btn-icon btn-outline-danger"
+                    disabled={removingId === it._id}
+                    onClick={() => confirmDelete(it._id)}
+                    title="Delete"
+                    data-bs-toggle="tooltip"
+                    data-bs-title="Delete"
+                    aria-label="Delete"
+                  >
+                    {removingId === it._id ? (
+                      <i className="ri-loader-4-line ri-spin" />
+                    ) : (
+                      <i className="ri-delete-bin-6-line" />
+                    )}
+                  </button>
+                ) : (
+                  <span className="text-muted small">—</span>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+
+      {!items.length && (
+        <tr>
+          <td colSpan={5} className="text-center text-muted">
+            No issues found
+          </td>
+        </tr>
+      )}
+    </>
+  )}
+</tbody>
+
         </table>
       </div>
 

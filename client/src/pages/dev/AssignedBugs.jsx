@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { useAuth } from "../../auth/AuthProvider";
 import { Link } from "react-router-dom";
+import TableSkeleton from "../../components/ui/TableSkeleton";
 
 const STATUSES_FOR_DEV = ["OPEN", "IN_PROGRESS", "READY_FOR_TEST"];
 
@@ -186,139 +187,138 @@ export default function AssignedBugs() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => (
-              <tr key={it._id}>
-                {/* Title with compact URL + attachments */}
-                <td style={{ maxWidth: 440 }}>
-                  <div className="fw-medium text-truncate">{it.title}</div>
+  {loading ? (
+    <TableSkeleton
+      rows={6}                 // how many shimmer rows to show
+      cols={7}                 // MUST match your <th> count
+      pattern={["lg","sm","sm","sm","sm","sm","sm"]} // optional per-col height
+    />
+  ) : (
+    <>
+      {items.map((it) => (
+        <tr key={it._id}>
+          {/* Title with compact URL + attachments */}
+          <td style={{ maxWidth: 440 }}>
+            <div className="fw-medium text-truncate">{it.title}</div>
 
-                  {it.pageUrl && (
-                    <div className="small">
-                      <a
-                        href={it.pageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-muted text-decoration-none"
-                        title={it.pageUrl}
-                      >
-                        <i className="ri-external-link-line me-1" />
-                        {shortUrl(it.pageUrl)}
-                      </a>
-                    </div>
-                  )}
-
-                  <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
-                    {(() => {
-                      const files = (it.attachments || []).map((a) =>
-                        typeof a === "string" ? { url: a, name: a } : a
-                      );
-                      const firstTwo = files.slice(0, 2);
-                      const extra = files.length - firstTwo.length;
-                      return (
-                        <>
-                          {firstTwo.map((a, i) =>
-                            a?.url ? (
-                              <a
-                                key={i}
-                                href={a.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="badge bg-secondary text-decoration-none"
-                                title={a.name || a.url}
-                                style={tinyBadgeStyle}
-                              >
-                                <i className="ri-attachment-2" />{" "}
-                                {badgeLabel(a.name || a.url)}
-                              </a>
-                            ) : null
-                          )}
-                          {extra > 0 && (
-                            <span
-                              className="badge bg-light border text-muted"
-                              style={{ fontSize: 11 }}
-                            >
-                              +{extra} more
-                            </span>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </td>
-
-                <td className="small text-muted">{it.projectId?.key || "—"}</td>
-
-                <td>
-                  <span className={`badge ${sevClass(it.severity)}`}>
-                    {it.severity}
-                  </span>
-                </td>
-
-                <td>
-                  <span className={`badge ${priClass(it.priority)}`}>
-                    {it.priority}
-                  </span>
-                </td>
-
-                <td style={{ minWidth: 180 }}>
-                  <select
-                    className="form-select form-select-sm"
-                    value={it.status}
-                    onChange={(e) => patchRow(it._id, { status: e.target.value })}
-                    title="Update status"
-                  >
-                    {STATUSES_FOR_DEV.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-
-                <td className="small text-muted">
-                  {new Date(it.createdAt).toLocaleString()}
-                </td>
-
-                {/* Actions */}
-                <td>
-                  <div className="d-flex align-items-center gap-2">
-                    <Link
-                      to={`/dev/issues/${it._id}`}
-                      className="btn btn-icon btn-outline-secondary"
-                      title="View details"
-                      data-bs-toggle="tooltip"
-                      data-bs-title="View details"
-                      aria-label="View details"
-                    >
-                      <i className="ri-eye-line" />
-                    </Link>
-
-                    {it.pageUrl && (
-                      <a
-                        href={it.pageUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-icon btn-outline-primary"
-                        title="Open page URL"
-                        data-bs-toggle="tooltip"
-                        data-bs-title="Open page URL"
-                        aria-label="Open page URL"
-                      >
-                        <i className="ri-external-link-line" />
-                      </a>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!items.length && !loading && (
-              <tr>
-                <td colSpan={7} className="text-center text-muted">
-                  No assigned issues
-                </td>
-              </tr>
+            {it.pageUrl && (
+              <div className="small">
+                <a
+                  href={it.pageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted text-decoration-none"
+                  title={it.pageUrl}
+                >
+                  <i className="ri-external-link-line me-1" />
+                  {shortUrl(it.pageUrl)}
+                </a>
+              </div>
             )}
-          </tbody>
+
+            <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
+              {(() => {
+                const files = (it.attachments || []).map((a) =>
+                  typeof a === "string" ? { url: a, name: a } : a
+                );
+                const firstTwo = files.slice(0, 2);
+                const extra = files.length - firstTwo.length;
+                return (
+                  <>
+                    {firstTwo.map((a, i) =>
+                      a?.url ? (
+                        <a
+                          key={i}
+                          href={a.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="badge bg-secondary text-decoration-none"
+                          title={a.name || a.url}
+                          style={tinyBadgeStyle}
+                        >
+                          <i className="ri-attachment-2" /> {badgeLabel(a.name || a.url)}
+                        </a>
+                      ) : null
+                    )}
+                    {extra > 0 && (
+                      <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
+                        +{extra} more
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </td>
+
+          <td className="small text-muted">{it.projectId?.key || "—"}</td>
+
+          <td>
+            <span className={`badge ${sevClass(it.severity)}`}>{it.severity}</span>
+          </td>
+
+          <td>
+            <span className={`badge ${priClass(it.priority)}`}>{it.priority}</span>
+          </td>
+
+          <td style={{ minWidth: 180 }}>
+            <select
+              className="form-select form-select-sm"
+              value={it.status}
+              onChange={(e) => patchRow(it._id, { status: e.target.value })}
+              title="Update status"
+            >
+              {STATUSES_FOR_DEV.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </td>
+
+          <td className="small text-muted">{new Date(it.createdAt).toLocaleString()}</td>
+
+          <td>
+            <div className="d-flex align-items-center gap-2">
+              <Link
+                to={`/dev/issues/${it._id}`}
+                className="btn btn-icon btn-outline-secondary"
+                title="View details"
+                data-bs-toggle="tooltip"
+                data-bs-title="View details"
+                aria-label="View details"
+              >
+                <i className="ri-eye-line" />
+              </Link>
+
+              {it.pageUrl && (
+                <a
+                  href={it.pageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-icon btn-outline-primary"
+                  title="Open page URL"
+                  data-bs-toggle="tooltip"
+                  data-bs-title="Open page URL"
+                  aria-label="Open page URL"
+                >
+                  <i className="ri-external-link-line" />
+                </a>
+              )}
+            </div>
+          </td>
+        </tr>
+      ))}
+
+      {!items.length && (
+        <tr>
+          <td colSpan={7} className="text-center text-muted">
+            No assigned issues
+          </td>
+        </tr>
+      )}
+    </>
+  )}
+</tbody>
+
         </table>
       </div>
 

@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import TableSkeleton from "../../components/ui/TableSkeleton";
 
 const STATUSES = ["NEW","OPEN","IN_PROGRESS","READY_FOR_TEST","REOPENED","CLOSED"];
 const PRIORITIES = ["P0","P1","P2","P3"];
@@ -272,133 +273,138 @@ export default function AdminAllBugs() {
             </tr>
           </thead>
           <tbody>
-            {items.map(it => (
-              <tr key={it._id}>
-                <td>
-                  <input type="checkbox" checked={selected.has(it._id)} onChange={() => toggleRow(it._id)} />
-                </td>
-
-                {/* Title cell: compact URL + short attachment chips */}
-                <td style={{ maxWidth: 420 }}>
-                  <div className="fw-medium text-truncate">{it.title}</div>
-                  {it.pageUrl && (
-                    <div className="small">
-                      <a href={it.pageUrl} target="_blank" rel="noreferrer" className="text-muted">
-                        {shortUrl(it.pageUrl)}
-                      </a>
-                    </div>
-                  )}
-                  <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
-                    {(() => {
-                      const files = (it.attachments || []).map(a => (typeof a === "string" ? { url: a, name: a } : a));
-                      const firstTwo = files.slice(0, 2);
-                      const extra = files.length - firstTwo.length;
-                      return (
-                        <>
-                          {firstTwo.map((a, i) =>
-                            a?.url ? (
-                              <a key={i} href={a.url} target="_blank" rel="noreferrer"
-                                 className="badge bg-secondary text-decoration-none" title={a.name || a.url}
-                                 style={tinyBadgeStyle}>
-                                {badgeLabel(a.name || a.url)}
-                              </a>
-                            ) : null
-                          )}
-                          {extra > 0 && (
-                            <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
-                              +{extra} more
-                            </span>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </td>
-
-                <td className="small text-muted">{it.projectId?.key || "—"}</td>
-
-                <td>
-                  <select className="form-select form-select-sm" value={it.severity}
-                          onChange={(e) => patchRow(it._id, { severity: e.target.value })}>
-                    {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-
-                <td>
-                  <select className="form-select form-select-sm" value={it.priority}
-                          onChange={(e) => patchRow(it._id, { priority: e.target.value })}>
-                    {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </td>
-
-                <td>
-                  <select className="form-select form-select-sm" value={it.status}
-                          onChange={(e) => patchRow(it._id, { status: e.target.value })}>
-                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-
-                <td>
-                  <select className="form-select form-select-sm" value={it.assigneeId || ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            patchRow(it._id, { assigneeId: v === "" ? null : v });
-                          }}>
-                    <option value="">Unassigned</option>
-                    {developers.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
-                  </select>
-                </td>
-
-                <td>
-                  <select className="form-select form-select-sm" defaultValue=""
-                          disabled={!developers.length}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (!v) return;
-                            patchRow(it._id, { assigneeId: v });
-                            e.target.value = ""; // reset placeholder
-                          }}>
-                    <option value="" disabled>{developers.length ? "Assign…" : "No developers"}</option>
-                    {developers.map(d => <option key={d._id} value={d._id}>{d.name} • {d.email}</option>)}
-                  </select>
-                </td>
-
-                <td className="small text-muted">{new Date(it.createdAt).toLocaleString()}</td>
-
-                <td>
-                  <div className="d-flex gap-2">
-                    <Link
-                      to={`/all-bugs/${it._id}`}
-                      className="btn btn-icon btn-outline-secondary"
-                      title="View details"
-                      data-bs-toggle="tooltip"
-                      data-bs-title="View details"
-                      aria-label="View details"
-                    >
-                      <i className="ri-eye-line" />
-                    </Link>
-
-                    <button
-                      className="btn btn-icon btn-outline-danger"
-                      onClick={() => confirmDelete(it._id)}
-                      title="Delete"
-                      data-bs-toggle="tooltip"
-                      data-bs-title="Delete"
-                      aria-label="Delete"
-                      disabled={deletingId === it._id}
-                    >
-                      {deletingId === it._id
-                        ? <i className="ri-loader-4-line ri-spin" />
-                        : <i className="ri-delete-bin-6-line" />}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!items.length && !loading && (
-              <tr><td colSpan={10} className="text-center text-muted">No issues</td></tr>
+  {loading ? (
+    <TableSkeleton
+      rows={6} // how many shimmer rows you want
+      cols={10} // must match your <th> count
+      pattern={["sm","lg","sm","sm","sm","sm","sm","sm","sm","sm"]}
+    />
+  ) : (
+    <>
+      {items.map(it => (
+        <tr key={it._id}>
+          <td>
+            <input type="checkbox" checked={selected.has(it._id)} onChange={() => toggleRow(it._id)} />
+          </td>
+          <td style={{ maxWidth: 420 }}>
+            <div className="fw-medium text-truncate">{it.title}</div>
+            {it.pageUrl && (
+              <div className="small">
+                <a href={it.pageUrl} target="_blank" rel="noreferrer" className="text-muted">
+                  {shortUrl(it.pageUrl)}
+                </a>
+              </div>
             )}
-          </tbody>
+            <div className="mt-1 d-flex align-items-center gap-1 flex-wrap">
+              {(() => {
+                const files = (it.attachments || []).map(a => (typeof a === "string" ? { url: a, name: a } : a));
+                const firstTwo = files.slice(0, 2);
+                const extra = files.length - firstTwo.length;
+                return (
+                  <>
+                    {firstTwo.map((a, i) =>
+                      a?.url ? (
+                        <a key={i} href={a.url} target="_blank" rel="noreferrer"
+                           className="badge bg-secondary text-decoration-none" title={a.name || a.url}
+                           style={tinyBadgeStyle}>
+                          {badgeLabel(a.name || a.url)}
+                        </a>
+                      ) : null
+                    )}
+                    {extra > 0 && (
+                      <span className="badge bg-light border text-muted" style={{ fontSize: 11 }}>
+                        +{extra} more
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </td>
+          <td className="small text-muted">{it.projectId?.key || "—"}</td>
+          <td>
+            <select className="form-select form-select-sm" value={it.severity}
+                    onChange={(e) => patchRow(it._id, { severity: e.target.value })}>
+              {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </td>
+          <td>
+            <select className="form-select form-select-sm" value={it.priority}
+                    onChange={(e) => patchRow(it._id, { priority: e.target.value })}>
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </td>
+          <td>
+            <select className="form-select form-select-sm" value={it.status}
+                    onChange={(e) => patchRow(it._id, { status: e.target.value })}>
+              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </td>
+          <td>
+            <select className="form-select form-select-sm" value={it.assigneeId || ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      patchRow(it._id, { assigneeId: v === "" ? null : v });
+                    }}>
+              <option value="">Unassigned</option>
+              {developers.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+            </select>
+          </td>
+          <td>
+            <select className="form-select form-select-sm" defaultValue=""
+                    disabled={!developers.length}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      patchRow(it._id, { assigneeId: v });
+                      e.target.value = ""; // reset placeholder
+                    }}>
+              <option value="" disabled>{developers.length ? "Assign…" : "No developers"}</option>
+              {developers.map(d => <option key={d._id} value={d._id}>{d.name} • {d.email}</option>)}
+            </select>
+          </td>
+          <td className="small text-muted">{new Date(it.createdAt).toLocaleString()}</td>
+          <td>
+            <div className="d-flex gap-2">
+              <Link
+                to={`/all-bugs/${it._id}`}
+                className="btn btn-icon btn-outline-secondary"
+                title="View details"
+                data-bs-toggle="tooltip"
+                data-bs-title="View details"
+                aria-label="View details"
+              >
+                <i className="ri-eye-line" />
+              </Link>
+              <button
+                className="btn btn-icon btn-outline-danger"
+                onClick={() => confirmDelete(it._id)}
+                title="Delete"
+                data-bs-toggle="tooltip"
+                data-bs-title="Delete"
+                aria-label="Delete"
+                disabled={deletingId === it._id}
+              >
+                {deletingId === it._id
+                  ? <i className="ri-loader-4-line ri-spin" />
+                  : <i className="ri-delete-bin-6-line" />}
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
+
+      {!items.length && (
+        <tr>
+          <td colSpan={10} className="text-center text-muted">
+            No issues
+          </td>
+        </tr>
+      )}
+    </>
+  )}
+</tbody>
+
         </table>
       </div>
 
